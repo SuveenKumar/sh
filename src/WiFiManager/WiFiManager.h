@@ -6,19 +6,21 @@
 
 class WiFiManager {
 public:
-    void begin(CredentialStorage* store);
-    void startCaptivePortal();
+    void begin(CredentialStorage* store, std::function<void(const String&)> statusCallback);
     void loop();
     String getStatusHtml();
+
     String pendingSSID;
     String pendingPASS;
-    bool pendingConnect = false;
     CredentialStorage* pendingStore = nullptr;
+    bool pendingConnect = false;
     void FallbackToDefaultSSID();
+
 private:
-    DNSServer dnsServer;
-    CredentialStorage* storage;
+    CredentialStorage* storage = nullptr;
+    std::function<void(const String&)> notifyCallback;
+
     void checkPendingConnection();
     unsigned long lastAttempt = 0;
-    const unsigned long IDLE_TIMEOUT = 10000; // 10 seconds
+    const unsigned long IDLE_TIMEOUT = 30000;
 };

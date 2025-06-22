@@ -1,7 +1,7 @@
 #include "WiFiManager.h"
-
-void WiFiManager::begin(CredentialStorage* store) {
+void WiFiManager::begin(CredentialStorage* store, std::function<void(const String&)> statusCallback) {
     storage = store;
+    notifyCallback = statusCallback;
     WiFi.mode(WIFI_AP_STA);
     Serial.println("🔧 WiFiManager initialized in AP+STA mode");
 }
@@ -12,10 +12,7 @@ void WiFiManager::FallbackToDefaultSSID() {
         return;
     }
 
-    if (WiFi.isConnected()) {
-        // Already connected, no fallback needed
-        return;
-    }
+    if (WiFi.isConnected()) return;
 
     String savedSSID, savedPassword;
     if (!storage->load(savedSSID, savedPassword)) {
@@ -36,15 +33,18 @@ void WiFiManager::FallbackToDefaultSSID() {
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("✅ Fallback connected to: " + savedSSID);
+        if (notifyCallback) notifyCallback("status:" + getStatusHtml());
     } else {
         Serial.println("❌ Fallback failed to connect");
+        if (notifyCallback) notifyCallback("status:"+getStatusHtml());
     }
 }
 
 void WiFiManager::checkPendingConnection() {
     if (!pendingConnect) return;
-
     Serial.println("⏳ Attempting connection to submitted SSID: " + pendingSSID);
+        if (notifyCallback) notifyCallback("status:" + getStatusHtml());
+
     WiFi.begin(pendingSSID.c_str(), pendingPASS.c_str());
 
     unsigned long start = millis();
@@ -54,6 +54,7 @@ void WiFiManager::checkPendingConnection() {
         Serial.print(".");
     }
     Serial.println();
+    pendingConnect = false;
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("✅ Connected to: " + pendingSSID);
@@ -62,36 +63,28 @@ void WiFiManager::checkPendingConnection() {
         } else {
             Serial.println("⚠️ Connected, but failed to save credentials");
         }
+        if (notifyCallback) notifyCallback("status:" + getStatusHtml());
     } else {
         Serial.println("❌ Failed to connect to: " + pendingSSID);
+        if (notifyCallback) notifyCallback("status:"+ getStatusHtml());
     }
 
-    pendingConnect = false;
-}
-
-void WiFiManager::startCaptivePortal() {
-    IPAddress apIP = WiFi.softAPIP();
-    Serial.println("🌐 Captive portal started at: " + apIP.toString());
-    dnsServer.start(53, "*", apIP);
 }
 
 void WiFiManager::loop() {
-    dnsServer.processNextRequest();
-    checkPendingConnection();      // High priority
-    if (millis() - lastAttempt >= IDLE_TIMEOUT)
-    {
+    checkPendingConnection();
+    if (millis() - lastAttempt >= IDLE_TIMEOUT) {
         lastAttempt = millis();
-        FallbackToDefaultSSID();   // Try fallback only if idle
+        FallbackToDefaultSSID();
     }
 }
 
 String WiFiManager::getStatusHtml() {
-    if (WiFi.status() == WL_CONNECTED) 
-    {
-        return "✅ Connected to: " + WiFi.SSID() + "<br>IP: " + WiFi.localIP().toString();
-    }
-    if(pendingConnect){
+    if (pendingConnect) {
         return "⏳ Attempting connection to: " + pendingSSID;
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+        return "✅ Connected to: " + WiFi.SSID() + "  " + WiFi.localIP().toString();
     }
     return "❌ Not connected";
 }

@@ -6,6 +6,18 @@
 class WebPortal {
 public:
     void begin(CredentialStorage* store, WiFiManager* wifi);
+    void notifyAll(const String& message);
+    void loop();
+
 private:
+    void setupWebSocket();
+
+    int scanClientId = -1;
+    bool scanInProgress = false;
+
+    CredentialStorage* credentialStorage = nullptr;
+    WiFiManager* wifiManager = nullptr;
+
+    AsyncWebSocket ws{"/ws"};
     AsyncWebServer server{80};
 };
