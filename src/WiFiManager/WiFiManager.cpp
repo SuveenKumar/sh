@@ -38,6 +38,7 @@ void WiFiManager::FallbackToDefaultSSID() {
         Serial.println("❌ Fallback failed to connect");
         if (notifyCallback) notifyCallback("status:"+getStatusHtml());
     }
+    pendingConnect = false;
 }
 
 void WiFiManager::checkPendingConnection() {
