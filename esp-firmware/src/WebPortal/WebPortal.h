@@ -11,6 +11,8 @@ public:
 
 private:
     void setupWebSocket();
+    void setupCaptivePortalRoutes();
+    static void serveIndex(AsyncWebServerRequest* request);
 
     int scanClientId = -1;
     bool scanInProgress = false;

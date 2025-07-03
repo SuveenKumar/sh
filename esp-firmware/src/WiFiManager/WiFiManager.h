@@ -1,7 +1,6 @@
 #pragma once
 #include <ESP8266WiFi.h>
 #include <Ticker.h>
-#include <DNSServer.h>
 #include "Credential/CredentialStorage.h"
 
 class WiFiManager {
