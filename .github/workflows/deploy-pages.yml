@@ -38,7 +38,7 @@ jobs:
         find ./esp-web -name "*.css" -print0 | xargs -0 stylelint
       shell: bash
 
-    - name: Deploy to GitHub Pages
+    - name: Deploy to GitHub Pages "https://suveenkumar.github.io/sh/"
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
