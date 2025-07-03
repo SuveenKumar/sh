@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "algorithm": "cpp",
-        "mutex": "cpp",
-        "stop_token": "cpp"
-    }
-}
