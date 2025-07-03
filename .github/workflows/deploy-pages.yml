@@ -1,4 +1,4 @@
-name: Deploy ESP Web (Static) to GitHub Pages
+name: Deploy ESP Web (Static) to GitHub Pages with JS Syntax Check
 
 on:
   push:
@@ -16,14 +16,19 @@ jobs:
     - name: Debug contents
       run: |
         echo "Files in esp-web:"
-        ls -la esp-web
+        ls -la esp-web || echo "esp-web folder not found"
+
+    - name: Check JavaScript syntax
+      run: |
+        echo "Running JS syntax check..."
+        find ./esp-web -name "*.js" -print0 | xargs -0 -n1 node --check
+      shell: bash
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./esp-web
-        publish_branch: main
+        publish_branch: gh-pages
         user_name: Suveen Kumar
         user_email: suveenkumar1997@gmail.com
-
