@@ -38,5 +38,8 @@ jobs:
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./esp-web
+        publish_dir: ./esp-web/dist
         publish_branch: gh-pages
+        user_name: Suveen Kumar
+        user_email: suveenkumar1997@gmail.com
+
