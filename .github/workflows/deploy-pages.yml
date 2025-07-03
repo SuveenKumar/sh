@@ -1,4 +1,4 @@
-name: Deploy ESP Web (Static) to GitHub Pages with Syntax Checks
+name: Deploy ESP Web Page to GitHub Pages
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Debug esp-web folder
+    - name: Check esp-web folder
       run: |
         echo "Files in esp-web:"
         ls -la esp-web || echo "esp-web folder not found"
