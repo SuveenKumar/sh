@@ -1,9 +1,45 @@
 #include "WebPortal.h"
 #include <LittleFS.h>
+#include <ArduinoJson.h>
+
+bool ledStates[4] = {false, false, false, false};
+const uint8_t LED_PINS[4] = {D3, D4, D5, D6};
+
+void loadLedStates() {
+    if (LittleFS.exists("/leds.json")) {
+        File file = LittleFS.open("/leds.json", "r");
+        if (file) {
+            DynamicJsonDocument doc(256);
+            DeserializationError err = deserializeJson(doc, file);
+            if (!err) {
+                for (int i = 0; i < 4; i++) {
+                    ledStates[i] = doc["led" + String(i)] | false;
+                    digitalWrite(LED_PINS[i], ledStates[i]);
+                }
+            }
+            file.close();
+        }
+    }
+}
+
+void saveLedStates() {
+    DynamicJsonDocument doc(256);
+    for (int i = 0; i < 4; i++) {
+        doc["led" + String(i)] = ledStates[i];
+    }
+    File file = LittleFS.open("/leds.json", "w");
+    serializeJson(doc, file);
+    file.close();
+}
 
 void WebPortal::begin(CredentialStorage* store, WiFiManager* wifi) {
     this->credentialStorage = store;
     this->wifiManager = wifi;
+
+    for (int i = 0; i < 4; i++) {
+        pinMode(LED_PINS[i], OUTPUT);
+    }
+    loadLedStates();
 
     setupWebSocket();
     setupCaptivePortalRoutes();
@@ -37,17 +73,13 @@ void WebPortal::setupWebSocket() {
         else if (type == WS_EVT_DATA) {
             String msg;
             for (size_t i = 0; i < len; i++) msg += (char)data[i];
-
             Serial.println("📩 WebSocket received message: " + msg);
 
             if (msg == "scan") {
                 if (!scanInProgress) {
-                    Serial.println("📶 Starting async WiFi scan...");
                     WiFi.scanNetworks(true);
                     scanInProgress = true;
                     scanClientId = client->id();
-                } else {
-                    Serial.println("⏳ Scan already in progress");
                 }
             } 
             else if (msg.startsWith("submit:")) {
@@ -56,26 +88,36 @@ void WebPortal::setupWebSocket() {
                     String ssid = msg.substring(7, sep);
                     String pass = msg.substring(sep + 1);
 
-                    Serial.println("📝 Received credentials via WebSocket:");
-                    Serial.println("   SSID: " + ssid);
-                    Serial.println("   PASS: " + pass);
-
                     wifiManager->pendingSSID = ssid;
                     wifiManager->pendingPASS = pass;
                     wifiManager->pendingStore = credentialStorage;
                     wifiManager->pendingConnect = true;
-                } else {
-                    Serial.println("⚠️ Invalid submit format. Expected submit:ssid,password");
                 }
             } 
             else if (msg == "reset") {
-                Serial.println("🧼 Received WiFi reset request");
                 LittleFS.remove("/wifi.json");
                 WiFi.disconnect(true);
                 client->text("status:" + wifiManager->getStatusHtml());
             } 
-            else {
-                Serial.println("⚠️ Unknown WebSocket message received: " + msg);
+            else if (msg == "led_status") {
+                DynamicJsonDocument doc(128);
+                JsonArray arr = doc.to<JsonArray>();
+                for (int i = 0; i < 4; i++) arr.add(ledStates[i]);
+                String json;
+                serializeJson(doc, json);
+                client->text("leds:" + json);
+            }
+            else if (msg.startsWith("led:")) {
+                int first = msg.indexOf(":", 4);
+                if (first > 0) {
+                    int index = msg.substring(4, first).toInt();
+                    bool state = msg.substring(first + 1) == "1";
+                    if (index >= 0 && index < 4) {
+                        ledStates[index] = state;
+                        digitalWrite(LED_PINS[index], state);
+                        saveLedStates();
+                    }
+                }
             }
         }
     });
@@ -90,7 +132,10 @@ void WebPortal::setupCaptivePortalRoutes() {
     server.on("/redirect", HTTP_ANY, serveIndex);
     server.on("/ncsi.txt", HTTP_ANY, serveIndex);
     server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->send(204); // No Content
+        request->send(204);
+    });
+    server.on("/leds", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->send(LittleFS, "/leds.html", "text/html");
     });
     server.onNotFound(serveIndex);
 }
@@ -110,7 +155,6 @@ void WebPortal::loop() {
     if (scanInProgress && result >= 0) {
         int n = result;
         String json = "[";
-
         for (int i = 0; i < n; ++i) {
             if (i > 0) json += ",";
             json += "\"" + WiFi.SSID(i) + "\"";
@@ -118,7 +162,6 @@ void WebPortal::loop() {
         json += "]";
         WiFi.scanDelete();
 
-        Serial.println("📡 Scan complete. Sending to client: " + json);
         AsyncWebSocketClient* target = ws.client(scanClientId);
         if (target && target->canSend()) {
             target->text("scan:" + json);
@@ -126,10 +169,9 @@ void WebPortal::loop() {
 
         scanInProgress = false;
         scanClientId = -1;
-        WiFi.scanNetworks(true); // Restart for future
+        WiFi.scanNetworks(true);
     } 
     else if (scanInProgress && result == -2) {
-        Serial.println("⚠️ WiFi scan failed");
         scanInProgress = false;
         scanClientId = -1;
         WiFi.scanNetworks(true);
