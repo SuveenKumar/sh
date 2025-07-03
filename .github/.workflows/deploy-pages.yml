@@ -1,0 +1,42 @@
+name: Deploy ESP Web to GitHub Pages
+
+on:
+  push:
+    branches: [main]  # Change this if your default branch is 'master'
+  workflow_dispatch:  # Allows manual trigger from the Actions tab
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies (if package.json exists)
+      working-directory: esp-web
+      run: |
+        if [ -f package.json ]; then
+          npm ci
+        fi
+
+    - name: Build project (if build script exists)
+      working-directory: esp-web
+      run: |
+        if [ -f package.json ]; then
+          if npm run | grep -q "build"; then
+            npm run build
+          fi
+        fi
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./esp-web
+        publish_branch: gh-pages
