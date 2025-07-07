@@ -14,7 +14,8 @@ void loadLedStates() {
             if (!err) {
                 for (int i = 0; i < 4; i++) {
                     ledStates[i] = doc["led" + String(i)] | false;
-                    digitalWrite(LED_PINS[i], ledStates[i]);
+                    //Active Low !ledStates[i]
+                    digitalWrite(LED_PINS[i], !ledStates[i]);
                 }
             }
             file.close();
@@ -97,7 +98,8 @@ void WebPortal::setupWebSocket() {
             else if (msg == "reset") {
                 LittleFS.remove("/wifi.json");
                 WiFi.disconnect(true);
-                client->text("status:" + wifiManager->getStatusHtml());
+                //client->text("status:" + wifiManager->getStatusHtml());
+                notifyAll("status:" + wifiManager->getStatusHtml());
             } 
             else if (msg == "led_status") {
                 DynamicJsonDocument doc(128);
@@ -114,8 +116,15 @@ void WebPortal::setupWebSocket() {
                     bool state = msg.substring(first + 1) == "1";
                     if (index >= 0 && index < 4) {
                         ledStates[index] = state;
-                        digitalWrite(LED_PINS[index], state);
+                        //Active Low !state
+                        digitalWrite(LED_PINS[index], !state);
                         saveLedStates();
+                        DynamicJsonDocument doc(128);
+                        JsonArray arr = doc.to<JsonArray>();
+                        for (int i = 0; i < 4; i++) arr.add(ledStates[i]);
+                        String json;
+                        serializeJson(doc, json);
+                        notifyAll("leds:" + json);
                     }
                 }
             }
