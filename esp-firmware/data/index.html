@@ -35,7 +35,7 @@
 
   <div class="status">
     <h3>Status</h3>
-    <div id="status">❌ Not connected to ESP📶</div>
+    <div id="status"></div>
   </div>
 
   <script>
@@ -43,24 +43,33 @@
     const statusDiv = document.getElementById("status");
     const ssidSelect = document.getElementById("ssid");
 
+    function sendMessage(msg){
+      const jsonStr = JSON.stringify(msg);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(jsonStr);
+      }
+      else {
+          statusDiv.textContent = "⚠️ WiFi not connected";
+      }
+    }
+
     function connectWebSocket() {
       ws = new WebSocket("ws://" + location.hostname + "/ws");
-
       ws.onopen = () => {
         console.log("✅ WebSocket connected");
-        ws.send("status");
+        //sendStatus();
         sendScan();
       };
 
       ws.onmessage = (event) => {
-        const msg = event.data;
-
-        if (msg.startsWith("status:")) {
-          const statusText = msg.substring(7);
-          statusDiv.textContent = statusText;
-          document.getElementById("resetBtn").disabled = !statusText.includes(".");
-        } else if (msg.startsWith("scan:")) {
-          const list = JSON.parse(msg.substring(5));
+        const msg = JSON.parse(event.data);
+        if (msg.type == "Status") {
+          const status = msg.status;
+          const connected = msg.connected;
+          statusDiv.textContent = status;
+          document.getElementById("resetBtn").disabled = !connected;
+        } else if (msg.type == "Scan") { 
+          const list =  msg.results;
           ssidSelect.innerHTML = "";
           list.forEach(ssid => {
             const opt = document.createElement("option");
@@ -78,26 +87,34 @@
     }
 
     function sendScan() {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send("scan");
-      }
+      const msg = {
+             type: "Scan"
+          };
+      sendMessage(msg);
     }
 
+    // function sendStatus() {
+    //   const msg = {
+    //          type: "GetStatus"
+    //       };
+    //   sendMessage(msg);
+    // }
+
     function sendSubmit() {
-      const ssid = ssidSelect.value;
-      const password = document.getElementById("password").value;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(`submit:${ssid},${password}`);
-      }
+      const msg = {
+        type: "Submit",
+        ssid: ssidSelect.value,
+        password: document.getElementById("password").value
+      };
+      sendMessage(msg);
     }
 
     function resetCredentials() {
       if (confirm("Reset WiFi settings?")) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send("reset");
-        } else {
-          statusDiv.textContent = "⚠️ WiFi not connected";
-        }
+        const msg = {
+             type: "Reset"
+          };
+        sendMessage(msg);
       }
     }
 

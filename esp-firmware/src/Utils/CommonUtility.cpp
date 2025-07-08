@@ -1,7 +1,8 @@
-#include "Utility.h"
-#define RESET_BUTTON_PIN 0
+#include "CommonUtility.h"
+#include <Utils/Constants.h>
+#include <ArduinoJson.h>
 
-void Utility::wipeAllMemory() {
+void CommonUtility::wipeAllMemory() {
   // Format FS
   LittleFS.begin();
   LittleFS.format();
@@ -18,7 +19,7 @@ void Utility::wipeAllMemory() {
   Serial.println("All memory wiped.");
 }
 
-bool checkResetButton() {
+bool CommonUtility::checkResetButton() {
     pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
     delay(100);
     if (digitalRead(RESET_BUTTON_PIN) == LOW) {
@@ -26,4 +27,14 @@ bool checkResetButton() {
         return true;
     }
     return false;
+}
+
+String CommonUtility::getMessageType(const String msg) {
+    DynamicJsonDocument doc(256);
+    DeserializationError error = deserializeJson(doc, msg);
+    if (!error) {
+       return doc["type"] | "";
+    } 
+    Serial.println("⚠️ JSON Parse Error: " + String(error.c_str()));
+    return "";
 }

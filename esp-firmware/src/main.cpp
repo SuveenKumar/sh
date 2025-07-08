@@ -1,54 +1,37 @@
 #include <LittleFS.h>
-#include "Credential/CredentialStorage.h"
-#include "WiFiManager/WiFiManager.h"
-#include "WebPortal/WebPortal.h"
-#include <DNSServer.h>
+#include "WiFiManager.h"
+#include "WebpageManager.h"
+#include "Utils/FileUtility.h"
+#include "Utils/PinsUtility.h"
+#include <Utils/Constants.h>
 
 // Global Instances
-CredentialStorage storage;
 WiFiManager wifiManager;
-WebPortal webPortal;
+WebpageManager webpageManager;
+AsyncWebSocket ws{"/ws"};
 
-const byte DNS_PORT = 53;
-DNSServer dnsServer;
 
 void setup() {
     Serial.begin(115200);
-
-    // Mount LittleFS
-    if (!LittleFS.begin()) {
-        Serial.println("❌ LittleFS mount failed!");
+    if(!FileUtility::mountFileSystem()){
         return;
     }
-    Serial.println("✅ LittleFS mounted");
+    bool* pinStates = FileUtility::loadPinStates();
 
-    // List all files for debugging
-    Serial.println("📂 Listing LittleFS files:");
-    Dir dir = LittleFS.openDir("/");
-    while (dir.next()) {
-        Serial.println("  " + dir.fileName());
+    if(pinStates != nullptr){
+        PinsUtility::updateDigitalPinsState(pinStates);
     }
 
-    // Start Access Point
-    WiFi.softAP("ESP-Config");
-    Serial.println("📡 AP Started: IP = " + WiFi.softAPIP().toString());
+    //Start WiFiManager
+    wifiManager.begin(&ws);
 
-    // Start DNS Server for captive portal
-    dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-
-    // Start WiFiManager
-    wifiManager.begin(&storage, [](const String& status) {
-        webPortal.notifyAll(status);
-    });
-
-    wifiManager.FallbackToDefaultSSID();
-
-    // Start WebPortal
-    webPortal.begin(&storage, &wifiManager);
-}
+    // Start WebPage
+    webpageManager.begin(&ws);
+    ws.enable(true);
+    Serial.println("🧩 WebSocket initialized");
+} 
 
 void loop() {
     wifiManager.loop();
-    webPortal.loop();
-    dnsServer.processNextRequest(); // Handle DNS redirects
+    webpageManager.loop();
 }
