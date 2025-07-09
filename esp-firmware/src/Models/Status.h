@@ -9,7 +9,7 @@ public:
 private:
     void fromJson(JsonDocument& doc) override {
         status = doc["status"] | "";
-        connected = doc["connected"] | "";
+        connected = doc["connected"];
     }
 
     void toJson(JsonDocument& doc) override {

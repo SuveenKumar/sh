@@ -16,14 +16,14 @@ void CommonUtility::wipeAllMemory() {
   // Forget WiFi
   WiFi.disconnect(true); // Also clears SDK flash WiFi creds
 
-  Serial.println("All memory wiped.");
+  Log::Info("All memory wiped.");
 }
 
 bool CommonUtility::checkResetButton() {
     pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
     delay(100);
     if (digitalRead(RESET_BUTTON_PIN) == LOW) {
-        Serial.println("Reset button held...");
+        Log::Info("Reset button held...");
         return true;
     }
     return false;
@@ -35,6 +35,6 @@ String CommonUtility::getMessageType(const String msg) {
     if (!error) {
        return doc["type"] | "";
     } 
-    Serial.println("⚠️ JSON Parse Error: " + String(error.c_str()));
+    Log::Info("⚠️ JSON Parse Error: " + String(error.c_str()));
     return "";
 }

@@ -1,11 +1,12 @@
 #pragma once
 #include <ArduinoJson.h>
+#include "Models/PinsState.h"
 
 class FileUtility {
 public:
     static bool mountFileSystem();
-    static bool* loadPinStates();
-    static void savePinStates(bool pinStates[4]);
+    static PinsState loadPinStates();
+    static void savePinStates(PinsState ledStates);
     static bool saveCredentials(const String &ssid, const String &password);
     static bool loadCredentials(String &ssid, String &password);
 };

@@ -1,59 +1,54 @@
 #include "FileUtility.h"
 #include <Utils/Constants.h>
 #include <LittleFS.h>
+#include "Log.h"
+#include "Models/PinsState.h"
 
 bool FileUtility::mountFileSystem(){
      // Mount LittleFS
     if (!LittleFS.begin()) {
-        Serial.println("❌ LittleFS mount failed!");
+        Log::Info("❌ LittleFS mount failed!");
         return false;
     }
 
-    Serial.println("✅ LittleFS mounted");
+    Log::Info("✅ LittleFS mounted");
     // List all files for debugging
-    Serial.println("📂 Listing LittleFS files:");
+    Log::Info("📂 Listing LittleFS files:");
     Dir dir = LittleFS.openDir("/");
     while (dir.next()) {
-        Serial.println("  " + dir.fileName());
+        Log::Info("  " + dir.fileName());
     }
     return true;
 }
 
-bool* FileUtility::loadPinStates() {
-    bool* ledStates = nullptr;
+PinsState FileUtility::loadPinStates() {
+    PinsState pinsState;
     if (LittleFS.exists("/leds.json")) {
         File file = LittleFS.open("/leds.json", "r");
         if (file) {
-            DynamicJsonDocument doc(256);
-            DeserializationError err = deserializeJson(doc, file);
-            if (!err) {
-                for (int i = 0; i < 4; i++) {
-                    if(doc.containsKey("led" + String(i))){
-                       ledStates[i] = doc["led" + String(i)] | false;
-                       Serial.print(ledStates[i]+", ");
-                    }
-
-                }
-                Serial.println();
-            }
-            else{
-                Serial.print("Pin States not saved");
-
-            }
-            file.close();
+            String jsonStr = file.readString();
+            Serial.println("Suveen");
+            pinsState.deserialize(jsonStr);
+            Serial.println("Suveen");
         }
+        else{
+            Log::Info("Pin States not Found");
+        }
+        file.close();
     }
-    return ledStates;
+        return pinsState;
 }
 
-void FileUtility::savePinStates(bool ledStates[4]) {
-    DynamicJsonDocument doc(256);
-    for (int i = 0; i < 4; i++) {
-        doc["led" + String(i)] = ledStates[i];
-    }
+void FileUtility::savePinStates(PinsState ledStates) {
     File file = LittleFS.open("/leds.json", "w");
-    serializeJson(doc, file);
-    file.close();
+    if (!file) {
+        Serial.println("❌ Failed to open file for writing");
+        return;
+    }
+
+  file.print(ledStates.serialize());
+  file.close();
+  Serial.println("✅ JSON saved to LittleFS");
 }
 
 bool FileUtility::loadCredentials(String& ssid, String& password) {
@@ -67,7 +62,7 @@ bool FileUtility::loadCredentials(String& ssid, String& password) {
     file.close();
 
     if (err) {
-        Serial.println("Cannot Deserialize SSID and Password from Saved File");
+        Log::Info("Cannot Deserialize SSID and Password from Saved File");
         return false;
     }
 
@@ -75,7 +70,7 @@ bool FileUtility::loadCredentials(String& ssid, String& password) {
     password = doc["password"] | "";
 
     if (ssid.isEmpty()) {
-        Serial.println("Saved SSID is empty");
+        Log::Info("Saved SSID is empty");
         return false;
     }
     return true;

@@ -1,56 +1,54 @@
 #include "GPIOManager.h"
 #include <Utils/Constants.h>
 #include <LittleFS.h>
+#include "Models/PinsState.h"
+#include "Utils/CommonUtility.h"
+#include "Models/TogglePin.h"
+#include "Utils/Log.h"
+#include "Utils/GPIOUtility.h"
 
 void GPIOManager::begin(AsyncWebSocket* ws) {
     this->ws = ws;
-    subscribeToMessages();
-    Serial.println("🚀 WebPortal started");
+    GPIOUtility::SetupGPIOPins();
+    if(FileUtility::mountFileSystem()){
+       //Load and set Last Pins State from memory
+       Log::Info("Setting Last Pins State");
+       GPIOUtility::updateAllPinsState(FileUtility::loadPinStates());
+    }
+    Log::Info("🚀 GPIOManager started");
 }
 
-void GPIOManager::subscribeToMessages() {
-    ws->onEvent([this](AsyncWebSocket *server, AsyncWebSocketClient *client,
-                      AwsEventType type, void *arg, uint8_t *data, size_t len) {
+void GPIOManager::loop(){
+}
 
-        if (type == WS_EVT_DATA) {
-            String msg;
-            for (size_t i = 0; i < len; i++) msg += (char)data[i];
-            Serial.println("📩 WebSocket received message: " + msg);
-
-            if (msg == "led_status") {
-                DynamicJsonDocument doc(128);
-                JsonArray arr = doc.to<JsonArray>();
-                bool* ledStates = FileUtility::loadPinStates();
-                for (int i = 0; i < 4; i++) arr.add(ledStates[i]);
-                String json;
-                serializeJson(doc, json);
-                client->text("leds:" + json);
+void GPIOManager::handleWebSocketMessage(AsyncWebSocketClient* client, AwsEventType eventType, String msg) {
+    if (eventType == WS_EVT_DATA) {
+            String type = CommonUtility::getMessageType(msg);
+                        Log::Info("TYPE: "+type);
+            if (type == "PinsStatus") {
+                Log::Info("📩 WebSocket received message: " + msg);
+                PinsState state; 
+                state = FileUtility::loadPinStates();
+                client->text(state.serialize());
             }
-            if (msg.startsWith("led:")) {
-                int first = msg.indexOf(":", 4);
-                if (first > 0) {
-                    int index = msg.substring(4, first).toInt();
-                    bool state = msg.substring(first + 1) == "1";
-                    if (index >= 0 && index < 4) {
-                        bool* ledStates = FileUtility::loadPinStates();
-                        ledStates[index] = state;
-                        //Active Low !state
-                        digitalWrite(LED_PINS[index], !state);
-                        FileUtility::savePinStates(ledStates);
-                        DynamicJsonDocument doc(128);
-                        JsonArray arr = doc.to<JsonArray>();
-                        for (int i = 0; i < 4; i++) arr.add(ledStates[i]);
-                        String json;
-                        serializeJson(doc, json);
-                        Serial.println("📣 Notifying all WebSocket clients: " + json);
-                        ws-> textAll("leds:" + json);
-                    }
+            if (type == "TogglePin") {
+                Log::Info("📩 WebSocket received message: " + msg);
+                TogglePin pinState;
+                pinState.deserialize(msg);
+                PinsState ledStates = FileUtility::loadPinStates();
+                ledStates.pinsState[pinState.index] = pinState.state;
+                for(int i=0;i<ledStates.pinsState.size();i++){
+                    Serial.println(String(i) +" : "+pinState.state);
                 }
-            }
-        }
-    });
+                Log::Info("TogglePin: " + String(pinState.index) +" "+ String(pinState.state));
+                
+                GPIOUtility::updatePinState(pinState.index, pinState.state);
+                FileUtility::savePinStates(ledStates);
 
-    ws->enable(true);
-    Serial.println("🧩 WebSocket initialized");
+                String json = ledStates.serialize();
+                Log::Info("📣 Notifying all WebSocket clients: " + json);
+                ws-> textAll(json);
+            }
+    }
 }
 

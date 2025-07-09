@@ -25,23 +25,29 @@
       ws = new WebSocket("ws://" + location.hostname + "/ws");
 
       ws.onopen = () => {
-        sendMessage("PinsStatus");
+        const msg = {
+             type: "PinsStatus"
+          };
+        sendMessage(msg);
       };
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type == "PinsState") {
           const states = msg.pinsState;
-          states.forEach((s, i) => document.getElementById("led" + i).checked = s);
+          states.forEach((s, i) => document.getElementById("led" + i).checked = s === 1);
         }
       };
     }
 
     function toggleLED(index) {
-      const checked = document.getElementById("led" + index).checked ? 1 : 0;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(`led:${index}:${checked}`);
-      }
+      const checked = document.getElementById("led" + index).checked ? true : false;
+      const msg = {
+             type: "TogglePin",
+             index: index,
+             state: checked
+          };
+        sendMessage(msg);
     }
 
     function sendMessage(msg){

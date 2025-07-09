@@ -57,7 +57,6 @@
       ws = new WebSocket("ws://" + location.hostname + "/ws");
       ws.onopen = () => {
         console.log("✅ WebSocket connected");
-        //sendStatus();
         sendScan();
       };
 
@@ -92,13 +91,6 @@
           };
       sendMessage(msg);
     }
-
-    // function sendStatus() {
-    //   const msg = {
-    //          type: "GetStatus"
-    //       };
-    //   sendMessage(msg);
-    // }
 
     function sendSubmit() {
       const msg = {

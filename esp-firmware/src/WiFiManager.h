@@ -1,11 +1,13 @@
 #pragma once
 #include <ESP8266WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include "BaseManager.h"
 
-class WiFiManager {
+class WiFiManager : public BaseManager {
 public:
-    void begin(AsyncWebSocket* ws);
-    void loop();
+    void begin(AsyncWebSocket* ws) override;
+    void loop() override;
+    void handleWebSocketMessage(AsyncWebSocketClient* client, AwsEventType eventType, String msg)override;
 
     String pendingSSID;
     String pendingPASS;
@@ -14,7 +16,6 @@ public:
 private:
     void checkPendingConnection();
     void scanNetworks();
-    void subscribeToMessages();
     unsigned long lastAttempt = 0;
     AsyncWebSocket* ws = nullptr;
     int scanClientId = -1;

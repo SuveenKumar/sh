@@ -16,9 +16,8 @@ private:
     }
 
     void toJson(JsonDocument& doc) override {
-        doc["type"] = getType();
         JsonArray jsonArray = doc["results"].to<JsonArray>();
-        for (const auto& ssid : results) {
+        for (const auto ssid : results) {
             jsonArray.add(ssid);
         }
     }

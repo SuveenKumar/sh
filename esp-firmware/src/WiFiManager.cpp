@@ -7,38 +7,41 @@
 
 #include "Utils/CommonUtility.h"
 #include "Models/ScanResults.h"
+#include "Utils/Log.h"
 
 void WiFiManager::begin(AsyncWebSocket* ws) {
     this->ws = ws;
-    subscribeToMessages();
 
     // Start Access Point
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP("ESP-Config");
     
-    Serial.println("📡 AP Started: IP = " + WiFi.softAPIP().toString());
+    Log::Info("📡 AP Started: IP = " + WiFi.softAPIP().toString());
     FallbackToDefaultSSID();
+    Log::Info("🚀 WiFiManager started");
 }
 
-void WiFiManager::subscribeToMessages() {
-    ws->onEvent([this](AsyncWebSocket *server, AsyncWebSocketClient *client,
-                      AwsEventType type, void *arg, uint8_t *data, size_t len) {
+void WiFiManager::loop() {
+    checkPendingConnection();
+    scanNetworks();
+    if (millis() - lastAttempt >= IDLE_TIMEOUT) {
+        lastAttempt = millis();
+        FallbackToDefaultSSID();
+    }
+}
 
-        if (type == WS_EVT_CONNECT) {
-            Serial.printf("🔌 WebSocket client connected: %s\n", client->remoteIP().toString().c_str());
-            
+void WiFiManager::handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventType eventType, String msg) {
+        if (eventType == WS_EVT_CONNECT) {
+            Log::Info("🔌 WebSocket client connected: "+ client->remoteIP().toString());
             Status status;            
             status.status = getStatusHtml();
             status.connected = status.status != "❌ Not connected";
             ws-> textAll(status.serialize());
         } 
-        if (type == WS_EVT_DATA) {
-            String msg;
-            for (size_t i = 0; i < len; i++) msg += (char)data[i];
-            Serial.println("📩 WebSocket received message: " + msg);
-
+        if (eventType == WS_EVT_DATA) {
             String type = CommonUtility::getMessageType(msg);
             if (type == "Scan") {
+                Log::Info("📩 WebSocket received message: " + msg);
                 if (!scanInProgress) {
                     WiFi.scanNetworks(true);
                     scanInProgress = true;
@@ -50,29 +53,29 @@ void WiFiManager::subscribeToMessages() {
                 }
             } 
             if (type == "Submit") {
+                Log::Info("📩 WebSocket received message: " + msg);
                 WiFiConfig config;
                 config.deserialize(msg);
-                Serial.println("SSID: " + config.ssid);
+                Log::Info("SSID: " + config.ssid);
                 pendingSSID = config.ssid;
                 pendingPASS = config.password;
                 pendingConnect = true;
             } 
             if (type == "Reset") {
+                Log::Info("📩 WebSocket received message: " + msg);
                 LittleFS.remove("/wifi.json");
                 WiFi.disconnect(true);
-                //client->text("status:" + wifiManager->getStatusHtml());
                 Status status;
                 status.connected = false;
                 status.status = getStatusHtml();
                 ws-> textAll(status.serialize());
             } 
         }
-    });
 }
 
 void WiFiManager::FallbackToDefaultSSID() {
     if (pendingConnect) {
-        Serial.println("⏭️ Skipping fallback: pending connection in progress");
+        Log::Info("⏭️ Skipping fallback: pending connection in progress");
         return;
     }
 
@@ -80,11 +83,11 @@ void WiFiManager::FallbackToDefaultSSID() {
 
     String savedSSID, savedPassword;
     if (!FileUtility::loadCredentials(savedSSID, savedPassword)) {
-        Serial.println("⚠️ No credentials found for fallback");
+        //Log::Info("⚠️ No credentials found for fallback");
         return;
     }
 
-    Serial.println("📶 Attempting fallback connection to SSID: " + savedSSID + savedPassword);
+    Log::Info("📶 Attempting fallback connection to SSID: " + savedSSID + savedPassword);
     WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
 
     unsigned long start = millis();
@@ -93,16 +96,16 @@ void WiFiManager::FallbackToDefaultSSID() {
         yield();
         Serial.print(".");
     }
-
+    Serial.println();
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("✅ Fallback connected to: " + savedSSID);
+        Log::Info("✅ Fallback connected to: " + savedSSID);
         Status status;            
         status.status = getStatusHtml();
         status.connected = true;
         ws-> textAll(status.serialize());    
     } 
     else {
-        Serial.println("❌ Fallback failed to connect");
+        Log::Info("❌ Fallback failed to connect");
         Status status;
         status.connected = false;
         status.status = getStatusHtml();
@@ -113,7 +116,7 @@ void WiFiManager::FallbackToDefaultSSID() {
 void WiFiManager::checkPendingConnection() {
     if (!pendingConnect) return;
 
-    Serial.println("⏳ Attempting connection to submitted SSID: " + pendingSSID + " "+ pendingPASS);
+    Log::Info("⏳ Attempting connection to submitted SSID: " + pendingSSID + " "+ pendingPASS);
 
     Status status;            
     status.status = getStatusHtml();
@@ -132,33 +135,24 @@ void WiFiManager::checkPendingConnection() {
     pendingConnect = false;
 
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("✅ Connected to: " + pendingSSID);
+        Log::Info("✅ Connected to: " + pendingSSID);
         if (FileUtility::saveCredentials(pendingSSID, pendingPASS)) {
-            Serial.println("💾 Credentials saved successfully");
+            Log::Info("💾 Credentials saved successfully");
         } else {
-            Serial.println("⚠️ Connected, but failed to save credentials");
+            Log::Info("⚠️ Connected, but failed to save credentials");
         }
         Status status;            
         status.status = getStatusHtml();
         status.connected = true;
         ws-> textAll(status.serialize());
     } else {
-        Serial.println("❌ Failed to connect to: " + pendingSSID);
+        Log::Info("❌ Failed to connect to: " + pendingSSID);
         Status status;            
         status.status = getStatusHtml();
         status.connected = false;
         ws-> textAll(status.serialize());
     }
 
-}
-
-void WiFiManager::loop() {
-    checkPendingConnection();
-    scanNetworks();
-    if (millis() - lastAttempt >= IDLE_TIMEOUT) {
-        lastAttempt = millis();
-        FallbackToDefaultSSID();
-    }
 }
 
 String WiFiManager::getStatusHtml() {

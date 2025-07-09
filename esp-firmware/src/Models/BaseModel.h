@@ -1,6 +1,6 @@
 #pragma once
 #include <ArduinoJson.h>
-
+#include "Utils/Log.h"
 class BaseModel {
 private:
     virtual void fromJson(JsonDocument& doc) = 0;
@@ -22,7 +22,7 @@ public:
         if (!error) {
             fromJson(doc);
         } else {
-            Serial.println("⚠️ JSON Parse Error: " + String(error.c_str()));
+            Log::Info("⚠️ JSON Parse Error: "+String(error.c_str()));
         }
     }
 
