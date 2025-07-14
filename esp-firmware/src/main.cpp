@@ -2,8 +2,7 @@
 #include "WiFiManager.h"
 #include "WebpageManager.h"
 #include "BaseManager.h"
-#include "Utils/Log.h"
-
+#include "Utils/CommonUtility.h"
 
 // Global Instances
 WiFiManager wifiManager;
@@ -35,7 +34,7 @@ void setup() {
     });
 
     ws.enable(true);
-    Log::Info("🧩 WebSocket initialized");
+    CommonUtility::LogInfo("🧩 WebSocket initialized");
 } 
 
 void loop() {

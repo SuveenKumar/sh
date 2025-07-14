@@ -44,9 +44,8 @@
     const ssidSelect = document.getElementById("ssid");
 
     function sendMessage(msg){
-      const jsonStr = JSON.stringify(msg);
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(jsonStr);
+        ws.send(msg);
       }
       else {
           statusDiv.textContent = "⚠️ WiFi not connected";
@@ -61,16 +60,18 @@
       };
 
       ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg.type == "Status") {
-          const status = msg.status;
-          const connected = msg.connected;
+        const msg = event.data.split('|');
+        const type = msg[0];     
+        const values = msg.slice(1);
+
+        if (type == "Status") {
+          const connected = values[0];
+          const status = values[1];
           statusDiv.textContent = status;
           document.getElementById("resetBtn").disabled = !connected;
-        } else if (msg.type == "Scan") { 
-          const list =  msg.results;
+        } else if (type == "ScanResults") { 
           ssidSelect.innerHTML = "";
-          list.forEach(ssid => {
+          values.forEach(ssid => {
             const opt = document.createElement("option");
             opt.text = ssid;
             opt.value = ssid;
@@ -86,26 +87,18 @@
     }
 
     function sendScan() {
-      const msg = {
-             type: "Scan"
-          };
+      const msg = "Scan";
       sendMessage(msg);
     }
 
     function sendSubmit() {
-      const msg = {
-        type: "Submit",
-        ssid: ssidSelect.value,
-        password: document.getElementById("password").value
-      };
+      const msg = "Submit|" + ssidSelect.value + "|" + document.getElementById("password").value;
       sendMessage(msg);
     }
 
     function resetCredentials() {
       if (confirm("Reset WiFi settings?")) {
-        const msg = {
-             type: "Reset"
-          };
+        const msg = "Reset";
         sendMessage(msg);
       }
     }

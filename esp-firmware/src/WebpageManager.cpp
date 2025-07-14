@@ -1,17 +1,17 @@
 #include "WebpageManager.h"
 #include <Utils/Constants.h>
 #include <LittleFS.h>
-#include "Utils/Log.h"
+#include "Utils/CommonUtility.h"
 
 void WebpageManager::begin(AsyncWebSocket* ws) {
     setupCaptivePortalRoutes();
     server.addHandler(ws);
 
     if (!LittleFS.exists("/index.html")) {
-        Log::Info("❌ index.html missing");
+        CommonUtility::LogInfo("❌ index.html missing");
         return;
     } 
-    Log::Info("✅ index.html found");
+    CommonUtility::LogInfo("✅ index.html found");
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
     server.begin();
 
@@ -19,7 +19,7 @@ void WebpageManager::begin(AsyncWebSocket* ws) {
     delay(100);
     WiFi.scanNetworks(true);
 
-    Log::Info("🚀 WebpageManager started");
+    CommonUtility::LogInfo("🚀 WebpageManager started");
 }
 
 void WebpageManager::loop(){
@@ -49,4 +49,3 @@ void WebpageManager::setupCaptivePortalRoutes() {
 void WebpageManager::serveIndex(AsyncWebServerRequest* request) {
     request->send(LittleFS, "/index.html", "text/html");
 }
-

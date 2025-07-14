@@ -22,4 +22,7 @@ private:
     bool scanInProgress = false;
     void FallbackToDefaultSSID();
     String getStatusHtml();
+    static bool saveCredentials(const String &ssid, const String &password);
+    static std::vector<String> loadCredentials();
+    void notifyStatusToAllClients();
 };

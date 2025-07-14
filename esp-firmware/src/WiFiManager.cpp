@@ -1,13 +1,8 @@
 #include "WiFiManager.h"
-#include "Utils/FileUtility.h"
 #include <LittleFS.h>
 #include "Utils/Constants.h"
-#include "Models/WiFiConfig.h"
-#include "Models/Status.h"
-
 #include "Utils/CommonUtility.h"
-#include "Models/ScanResults.h"
-#include "Utils/Log.h"
+#include "Utils/MessageParser.h"
 
 void WiFiManager::begin(AsyncWebSocket* ws) {
     this->ws = ws;
@@ -16,9 +11,9 @@ void WiFiManager::begin(AsyncWebSocket* ws) {
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP("ESP-Config");
     
-    Log::Info("📡 AP Started: IP = " + WiFi.softAPIP().toString());
+    CommonUtility::LogInfo("📡 AP Started: IP = " + WiFi.softAPIP().toString());
     FallbackToDefaultSSID();
-    Log::Info("🚀 WiFiManager started");
+    CommonUtility::LogInfo("🚀 WiFiManager started");
 }
 
 void WiFiManager::loop() {
@@ -32,62 +27,62 @@ void WiFiManager::loop() {
 
 void WiFiManager::handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventType eventType, String msg) {
         if (eventType == WS_EVT_CONNECT) {
-            Log::Info("🔌 WebSocket client connected: "+ client->remoteIP().toString());
-            Status status;            
-            status.status = getStatusHtml();
-            status.connected = status.status != "❌ Not connected";
-            ws-> textAll(status.serialize());
+            CommonUtility::LogInfo("🔌 WebSocket client connected: "+ client->remoteIP().toString());
+            notifyStatusToAllClients();
         } 
         if (eventType == WS_EVT_DATA) {
-            String type = CommonUtility::getMessageType(msg);
-            if (type == "Scan") {
-                Log::Info("📩 WebSocket received message: " + msg);
+            MessageData message = MessageParser::parse(msg);
+            CommonUtility::LogInfo("Suveen: "+msg);
+            if (message.type == "Scan") {
+                CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
                 if (!scanInProgress) {
                     WiFi.scanNetworks(true);
                     scanInProgress = true;
                     scanClientId = client->id();
-                    Status status;
-                    status.connected = true;
-                    status.status = getStatusHtml();
-                    client->text(status.serialize());
                 }
-            } 
-            if (type == "Submit") {
-                Log::Info("📩 WebSocket received message: " + msg);
-                WiFiConfig config;
-                config.deserialize(msg);
-                Log::Info("SSID: " + config.ssid);
-                pendingSSID = config.ssid;
-                pendingPASS = config.password;
+            }
+            if (message.type  == "Submit") {
+                CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
+                pendingSSID = message.values[0];
+                pendingPASS = message.values[1];
                 pendingConnect = true;
             } 
-            if (type == "Reset") {
-                Log::Info("📩 WebSocket received message: " + msg);
+            if (message.type == "Reset") {
+                CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
                 LittleFS.remove("/wifi.json");
                 WiFi.disconnect(true);
-                Status status;
-                status.connected = false;
-                status.status = getStatusHtml();
-                ws-> textAll(status.serialize());
+                notifyStatusToAllClients();
             } 
         }
 }
 
+void WiFiManager::notifyStatusToAllClients(){
+    MessageData response;            
+    response.type = "Status";
+    response.values.emplace_back(String(WiFi.isConnected()));
+    response.values.emplace_back(getStatusHtml());
+    ws-> textAll(MessageParser::build(response));
+}
+
 void WiFiManager::FallbackToDefaultSSID() {
     if (pendingConnect) {
-        Log::Info("⏭️ Skipping fallback: pending connection in progress");
+        CommonUtility::LogInfo("⏭️ Skipping fallback: pending connection in progress");
         return;
     }
 
     if (WiFi.isConnected()) return;
 
-    String savedSSID, savedPassword;
-    if (!FileUtility::loadCredentials(savedSSID, savedPassword)) {
-        //Log::Info("⚠️ No credentials found for fallback");
+    std::vector<String> credentials = loadCredentials();
+
+    if (credentials.size() == 0 || credentials[0] == "") {
+        //CommonUtility::LogInfo("⚠️ No credentials found for fallback");
         return;
     }
 
-    Log::Info("📶 Attempting fallback connection to SSID: " + savedSSID + savedPassword);
+    String savedSSID = credentials[0];
+    String savedPassword = credentials.size() == 2 ? credentials[1] : "";
+
+    CommonUtility::LogInfo("📶 Attempting fallback connection to SSID: " + savedSSID + savedPassword);
     WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
 
     unsigned long start = millis();
@@ -98,30 +93,21 @@ void WiFiManager::FallbackToDefaultSSID() {
     }
     Serial.println();
     if (WiFi.status() == WL_CONNECTED) {
-        Log::Info("✅ Fallback connected to: " + savedSSID);
-        Status status;            
-        status.status = getStatusHtml();
-        status.connected = true;
-        ws-> textAll(status.serialize());    
+        CommonUtility::LogInfo("✅ Fallback connected to: " + savedSSID);
+        notifyStatusToAllClients();   
     } 
     else {
-        Log::Info("❌ Fallback failed to connect");
-        Status status;
-        status.connected = false;
-        status.status = getStatusHtml();
-        ws-> textAll(status.serialize());    
+        CommonUtility::LogInfo("❌ Fallback failed to connect");
+        notifyStatusToAllClients();
     }
 }
 
 void WiFiManager::checkPendingConnection() {
     if (!pendingConnect) return;
 
-    Log::Info("⏳ Attempting connection to submitted SSID: " + pendingSSID + " "+ pendingPASS);
-
-    Status status;            
-    status.status = getStatusHtml();
-    status.connected = false;
-    ws-> textAll(status.serialize());
+    CommonUtility::LogInfo("⏳ Attempting connection to submitted SSID: " + pendingSSID + " "+ pendingPASS);
+    
+    notifyStatusToAllClients();
 
     WiFi.begin(pendingSSID.c_str(), pendingPASS.c_str());
 
@@ -135,22 +121,16 @@ void WiFiManager::checkPendingConnection() {
     pendingConnect = false;
 
     if (WiFi.status() == WL_CONNECTED) {
-        Log::Info("✅ Connected to: " + pendingSSID);
-        if (FileUtility::saveCredentials(pendingSSID, pendingPASS)) {
-            Log::Info("💾 Credentials saved successfully");
+        CommonUtility::LogInfo("✅ Connected to: " + pendingSSID);
+        if (saveCredentials(pendingSSID, pendingPASS)) {
+            CommonUtility::LogInfo("💾 Credentials saved successfully");
         } else {
-            Log::Info("⚠️ Connected, but failed to save credentials");
+            CommonUtility::LogInfo("⚠️ Connected, but failed to save credentials");
         }
-        Status status;            
-        status.status = getStatusHtml();
-        status.connected = true;
-        ws-> textAll(status.serialize());
+        notifyStatusToAllClients();
     } else {
-        Log::Info("❌ Failed to connect to: " + pendingSSID);
-        Status status;            
-        status.status = getStatusHtml();
-        status.connected = false;
-        ws-> textAll(status.serialize());
+        CommonUtility::LogInfo("❌ Failed to connect to: " + pendingSSID);
+        notifyStatusToAllClients();
     }
 
 }
@@ -168,15 +148,20 @@ String WiFiManager::getStatusHtml() {
 void WiFiManager::scanNetworks() {
     int result = WiFi.scanComplete();
     if (scanInProgress && result >= 0) {
-        ScanResults scanResults;
+        CommonUtility::LogInfo("scanNetworks1");
+        MessageData response;        
+        response.values.reserve(result);    
+        response.type = "ScanResults";
         for (int i = 0; i < result; ++i) {
-            scanResults.results.push_back(WiFi.SSID(i));
+            response.values.emplace_back(String(WiFi.SSID(i).c_str()));
         }
         WiFi.scanDelete();
 
         AsyncWebSocketClient* target = ws->client(scanClientId);
         if (target && target->canSend()) {
-            target->text(scanResults.serialize());
+            auto json = MessageParser::build(response);
+            CommonUtility::LogInfo(json);
+            target->text(json);
         }
 
         scanInProgress = false;
@@ -192,3 +177,24 @@ void WiFiManager::scanNetworks() {
         WiFi.scanNetworks(true);
     }
 }
+
+std::vector<String> WiFiManager::loadCredentials() {
+    
+    std::vector<String> result(2);
+    String credentials = CommonUtility::loadStringFromFile("/credentials.txt");
+
+    int sepIndex = credentials.indexOf('|');
+
+    if (sepIndex != -1) {
+        result[0] = credentials.substring(0, sepIndex);
+        result[1] = credentials.substring(sepIndex + 1);
+    }
+
+    return result;
+}
+
+bool WiFiManager::saveCredentials(const String& ssid, const String& password) {
+    String credentials = ssid + "|" + password;
+    return CommonUtility::saveStringToFile("/credentials.txt", credentials);
+}
+
