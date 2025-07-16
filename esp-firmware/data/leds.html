@@ -1,18 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>LED Control</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+  <div class="navbar">
+    <div>ESP8266 Control</div>
+    <div><a href="/index.html">WiFi Setup</a></div>
+  </div>
+
   <div class="container">
-    <h2>Control LEDs</h2>
-    <div class="led"><label>LED 1 (D3)</label> <input type="checkbox" id="led0"></div>
-    <div class="led"><label>LED 2 (D4)</label> <input type="checkbox" id="led1"></div>
-    <div class="led"><label>LED 3 (D5)</label> <input type="checkbox" id="led2"></div>
-    <div class="led"><label>LED 4 (D6)</label> <input type="checkbox" id="led3"></div>
+    <h2>LED Control</h2>
+
+    <div class="led">
+      <label>LED 1 (D3)</label>
+      <label class="switch"><input type="checkbox" id="led0"><span class="slider"></span></label>
+    </div>
+    <div class="led">
+      <label>LED 2 (D4)</label>
+      <label class="switch"><input type="checkbox" id="led1"><span class="slider"></span></label>
+    </div>
+    <div class="led">
+      <label>LED 3 (D5)</label>
+      <label class="switch"><input type="checkbox" id="led2"><span class="slider"></span></label>
+    </div>
+    <div class="led">
+      <label>LED 4 (D6)</label>
+      <label class="switch"><input type="checkbox" id="led3"><span class="slider"></span></label>
+    </div>
   </div>
 
   <script src="/common.js"></script>

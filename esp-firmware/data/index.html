@@ -1,24 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>ESP8266 WiFi Setup</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css">
+  <meta charset="UTF-8" />
+  <title>WiFi Setup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+  <div class="navbar">
+    <div>ESP8266 Setup</div>
+    <div><a href="/leds.html">LED Control</a></div>
+  </div>
+
   <div class="container">
     <h2>WiFi Setup</h2>
-    <a href="/leds.html"><button>Go to LED Control</button></a>
+
     <form id="wifiForm">
-      <label for="ssid">SSID:</label>
+      <label for="ssid">SSID</label>
       <select id="ssid"><option>Loading...</option></select>
       <button type="button" id="scanBtn">Scan</button>
 
-      <label for="password">Password:</label>
-      <input type="password" id="password" required>
+      <label for="password">Password</label>
+      <input type="password" id="password" required />
 
-      <input type="submit" value="Connect">
+      <input type="submit" value="Connect" />
     </form>
 
     <button id="resetBtn" disabled>Reset WiFi</button>
