@@ -4,11 +4,13 @@
 #include "BaseManager.h"
 #include <DNSServer.h>
 
-class GPIOManager : public BaseManager {
+class GPIOManager : public BaseManager
+{
 public:
-    void begin(AsyncWebSocket* ws) override;
+    void begin(AsyncWebSocket *ws) override;
     void loop() override;
-    void handleWebSocketMessage(AsyncWebSocketClient* client, AwsEventType eventType, String msg) override;
+    void handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventType eventType, String msg) override;
+
 private:
     bool mountFileSystem();
     static void SetupGPIOPins();

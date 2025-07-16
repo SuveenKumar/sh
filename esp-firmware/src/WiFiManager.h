@@ -3,11 +3,12 @@
 #include <ESPAsyncWebServer.h>
 #include "BaseManager.h"
 
-class WiFiManager : public BaseManager {
+class WiFiManager : public BaseManager
+{
 public:
-    void begin(AsyncWebSocket* ws) override;
+    void begin(AsyncWebSocket *ws) override;
     void loop() override;
-    void handleWebSocketMessage(AsyncWebSocketClient* client, AwsEventType eventType, String msg)override;
+    void handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventType eventType, String msg) override;
 
     String pendingSSID;
     String pendingPASS;
@@ -17,7 +18,7 @@ private:
     void checkPendingConnection();
     void scanNetworks();
     unsigned long lastAttempt = 0;
-    AsyncWebSocket* ws = nullptr;
+    AsyncWebSocket *ws = nullptr;
     int scanClientId = -1;
     bool scanInProgress = false;
     void FallbackToDefaultSSID();

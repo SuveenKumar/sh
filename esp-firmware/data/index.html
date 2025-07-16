@@ -1,114 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>ESP8266 WiFi Config</title>
+  <meta charset="UTF-8">
+  <title>ESP8266 WiFi Setup</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    input, select, button { width: 100%; padding: 8px; margin: 10px 0; }
-    input[type="submit"] { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-    input[type="submit"]:hover { background-color: #45a049; }
-    button { background-color: #008CBA; color: white; border: none; cursor: pointer; }
-    button:hover { background-color: #007BA7; }
-    button:disabled { background-color: #ccc; cursor: not-allowed; }
-    .status { margin-top: 20px; }
-  </style>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <h2>WiFi Setup</h2>
-  <a href="/leds.html"><button type="button">Go to LED Control</button></a>
-  <form id="wifiForm">
-    <label for="ssid">SSID:</label>
-    <select id="ssid" name="ssid">
-      <option>Loading...</option>
-    </select>
+  <div class="container">
+    <h2>WiFi Setup</h2>
+    <a href="/leds.html"><button>Go to LED Control</button></a>
+    <form id="wifiForm">
+      <label for="ssid">SSID:</label>
+      <select id="ssid"><option>Loading...</option></select>
+      <button type="button" id="scanBtn">Scan</button>
 
-    <button type="button" onclick="sendScan()">Scan</button>
+      <label for="password">Password:</label>
+      <input type="password" id="password" required>
 
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required>
+      <input type="submit" value="Connect">
+    </form>
 
-    <input type="submit" value="Connect">
-  </form>
+    <button id="resetBtn" disabled>Reset WiFi</button>
 
-  <button id="resetBtn" onclick="resetCredentials()" disabled>Reset WiFi</button>
-
-  <div class="status">
-    <h3>Status</h3>
-    <div id="status"></div>
+    <div class="status">
+      <h3>Status</h3>
+      <div id="status"></div>
+    </div>
   </div>
 
-  <script>
-    let ws;
-    const statusDiv = document.getElementById("status");
-    const ssidSelect = document.getElementById("ssid");
-
-    function sendMessage(msg){
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(msg);
-      }
-      else {
-          statusDiv.textContent = "⚠️ WiFi not connected";
-      }
-    }
-
-    function connectWebSocket() {
-      ws = new WebSocket("ws://" + location.hostname + "/ws");
-      ws.onopen = () => {
-        console.log("✅ WebSocket connected");
-        sendScan();
-      };
-
-      ws.onmessage = (event) => {
-        const msg = event.data.split('|');
-        const type = msg[0];     
-        const values = msg.slice(1);
-
-        if (type == "Status") {
-          const connected = values[0];
-          const status = values[1];
-          statusDiv.textContent = status;
-          document.getElementById("resetBtn").disabled = !connected;
-        } else if (type == "ScanResults") { 
-          ssidSelect.innerHTML = "";
-          values.forEach(ssid => {
-            const opt = document.createElement("option");
-            opt.text = ssid;
-            opt.value = ssid;
-            ssidSelect.appendChild(opt);
-          });
-        }
-      };
-
-      ws.onclose = () => {
-        console.warn("❌ WebSocket disconnected. Retrying...");
-        setTimeout(connectWebSocket, 3000);
-      };
-    }
-
-    function sendScan() {
-      const msg = "Scan";
-      sendMessage(msg);
-    }
-
-    function sendSubmit() {
-      const msg = "Submit|" + ssidSelect.value + "|" + document.getElementById("password").value;
-      sendMessage(msg);
-    }
-
-    function resetCredentials() {
-      if (confirm("Reset WiFi settings?")) {
-        const msg = "Reset";
-        sendMessage(msg);
-      }
-    }
-
-    document.getElementById("wifiForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      sendSubmit(); // WebSocket-based submission
-    });
-
-    connectWebSocket();
-  </script>
+  <script src="/common.js"></script>
+  <script src="/wifi.js"></script>
 </body>
 </html>

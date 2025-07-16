@@ -1,62 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>LED Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    h2 { margin-bottom: 20px; }
-    .led { margin: 10px 0; }
-    label { font-weight: bold; }
-    input[type="checkbox"] { transform: scale(1.5); margin-left: 10px; }
-  </style>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <h2>Control LEDs</h2>
+  <div class="container">
+    <h2>Control LEDs</h2>
+    <div class="led"><label>LED 1 (D3)</label> <input type="checkbox" id="led0"></div>
+    <div class="led"><label>LED 2 (D4)</label> <input type="checkbox" id="led1"></div>
+    <div class="led"><label>LED 3 (D5)</label> <input type="checkbox" id="led2"></div>
+    <div class="led"><label>LED 4 (D6)</label> <input type="checkbox" id="led3"></div>
+  </div>
 
-  <div class="led"><label>LED 1 (D3)</label> <input type="checkbox" id="led0" onchange="toggleLED(0)"></div>
-  <div class="led"><label>LED 2 (D4)</label> <input type="checkbox" id="led1" onchange="toggleLED(1)"></div>
-  <div class="led"><label>LED 3 (D5)</label> <input type="checkbox" id="led2" onchange="toggleLED(2)"></div>
-  <div class="led"><label>LED 4 (D6)</label> <input type="checkbox" id="led3" onchange="toggleLED(3)"></div>
-
-  <script>
-    let ws;
-    function connectWebSocket() {
-      ws = new WebSocket("ws://" + location.hostname + "/ws");
-
-      ws.onopen = () => {
-        const msg = "PinsStatus";
-        sendMessage(msg);
-      };
-
-      ws.onmessage = (event) => {
-        const msg = event.data.split('|');
-        const type = msg[0];     
-        const values = msg.slice(1);
-
-        if (type === "PinsState") {
-           values[0].forEach((val, i) => {
-           document.getElementById("led" + i).checked = val === "1";
-        });
-      }
-    }
-  }
-
-    function toggleLED(index) {
-      const checked = document.getElementById("led" + index).checked ? 1 : 0;
-      const msg = "TogglePin|"+ index+"|"+checked;
-      sendMessage(msg);
-    }
-
-    function sendMessage(msg){
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(msg);
-      }
-      else {
-          statusDiv.textContent = "⚠️ WiFi not connected";
-      }
-    }
-    connectWebSocket();
-  </script>
+  <script src="/common.js"></script>
+  <script src="/leds.js"></script>
 </body>
 </html>
