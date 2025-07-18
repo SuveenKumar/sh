@@ -22,8 +22,12 @@ function createDevicePanel(deviceId, name) {
     const ledDiv = document.createElement("div");
     ledDiv.className = "led";
 
+    // Editable label
     const label = document.createElement("label");
+    label.contentEditable = true;
     label.textContent = `LED ${i + 1}`;
+    label.className = "editable-label";
+    label.setAttribute("data-default", `LED ${i + 1}`); // Optional fallback
 
     const switchLabel = document.createElement("label");
     switchLabel.className = "switch";
@@ -50,6 +54,7 @@ function createDevicePanel(deviceId, name) {
 
   container.appendChild(panel);
 }
+
 
 onWebSocketEvent((event, data) => {
   if (event === "message") {
