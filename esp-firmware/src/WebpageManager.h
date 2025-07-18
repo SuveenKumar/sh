@@ -10,6 +10,7 @@ public:
     void begin(AsyncWebSocket *ws) override;
     void loop() override;
     void handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventType eventType, String msg) override;
+    void handleESPNowMessage(uint8_t *macAddress, String msg) override;
 
 private:
     void setupCaptivePortalRoutes();

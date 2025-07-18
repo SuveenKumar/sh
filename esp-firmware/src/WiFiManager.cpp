@@ -7,12 +7,6 @@
 void WiFiManager::begin(AsyncWebSocket *ws)
 {
     this->ws = ws;
-
-    // Start Access Point
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.softAP("ESP-Config");
-
-    CommonUtility::LogInfo("📡 AP Started: IP = " + WiFi.softAPIP().toString());
     FallbackToDefaultSSID();
     CommonUtility::LogInfo("🚀 WiFiManager started");
 }
@@ -45,39 +39,37 @@ void WiFiManager::handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventT
     if (eventType == WS_EVT_DATA)
     {
         MessageData message = MessageParser::parse(msg);
-        CommonUtility::LogInfo("Suveen: " + msg);
         if (message.type == "Scan")
         {
-            CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
             if (!scanInProgress)
             {
-                WiFi.scanNetworks(true);
                 scanInProgress = true;
                 scanClientId = client->id();
             }
         }
         if (message.type == "Submit")
         {
-            CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
             pendingSSID = message.values[0];
             pendingPASS = message.values[1];
             pendingConnect = true;
         }
         if (message.type == "Reset")
         {
-            CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
             LittleFS.remove("/wifi.json");
             WiFi.disconnect(true);
             notifyStatusToAllClients();
         }
         if (message.type == "Reset")
         {
-            CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
             LittleFS.remove("/wifi.json");
             WiFi.disconnect(true);
             notifyStatusToAllClients();
         }
     }
+}
+
+void WiFiManager::handleESPNowMessage(uint8_t *macAddress, String msg){
+
 }
 
 void WiFiManager::notifyStatusToAllClients()

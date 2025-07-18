@@ -16,6 +16,23 @@ void GPIOManager::begin(AsyncWebSocket *ws)
         CommonUtility::saveStringToFile("/leds.txt", pinsState);
     }
     updateAllPinsState(pinsState);
+    
+    // Start Access Point
+    WiFi.mode(WIFI_AP_STA);
+    String softApSSID = CommonUtility::loadStringFromFile("/device.txt");
+    if (softApSSID.isEmpty())
+    {
+        WiFi.softAP("ESP-Config");
+    }
+    else
+    {
+        WiFi.softAP(softApSSID);
+    }
+
+    CommonUtility::LogInfo("📡 AP Started: IP = " + WiFi.softAPIP().toString());
+    delay(100);
+
+    CommonUtility::broadcastEspNowMessage(GetPinStateMessage(pinsState));
     CommonUtility::LogInfo("Last Pins State: " + pinsState);
     CommonUtility::LogInfo("🚀 GPIOManager started");
 }
@@ -28,49 +45,106 @@ void GPIOManager::handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventT
 {
     if (eventType == WS_EVT_CONNECT)
     {
-        CommonUtility::LogInfo("🔌 WebSocket client connected: " + client->remoteIP().toString());
-        MessageData response;
-        response.type = "PinsState";
-        response.values.emplace_back(CommonUtility::loadStringFromFile("/leds.txt"));
-        client->text(MessageParser::build(response));
+        String json = GetPinStateMessage(CommonUtility::loadStringFromFile("/leds.txt"));
+        CommonUtility::broadcastEspNowMessage("PinsStatus");
+        client->text(json);
+
+        MessageData deviceName;
+        deviceName.type = "DeviceName";
+        deviceName.values.push_back(WiFi.softAPSSID());
+        client->text(MessageParser::build(deviceName));
     }
+
     if (eventType == WS_EVT_DATA)
     {
         MessageData message = MessageParser::parse(msg);
-        if (message.type == "PinsStatus")
-        {
-            CommonUtility::LogInfo("📩 WebSocket received message: " + msg);
-            MessageData response;
-            response.type = "PinsState";
-            String pinStates = CommonUtility::loadStringFromFile("/leds.txt");
-            response.values.emplace_back(pinStates);
-            client->text(MessageParser::build(response));
-            CommonUtility::LogInfo("📣 Notifying all WebSocket clients: " + pinStates);
-        }
         if (message.type == "TogglePin")
         {
-            int index = message.values[0][0] - '0';
-            char state = message.values[1][0];
-
-            String newStates = CommonUtility::loadStringFromFile("/leds.txt");
-            newStates[index] = state;
-            updatePinState(index, state - '0');
-
-            CommonUtility::LogInfo("Updated pin State:" + newStates);
-            if (CommonUtility::saveStringToFile("/leds.txt", newStates))
+            if(message.values[0] == WiFi.softAPSSID())
             {
-                Serial.println("✅ JSON saved to LittleFS");
+                TogglePin(message);
             }
-
-            MessageData response;
-            response.type = "PinsState";
-            response.values.emplace_back(newStates);
-
-            String json = MessageParser::build(response);
-            CommonUtility::LogInfo("📣 Notifying all WebSocket clients: " + json);
-            ws->textAll(json);
+            else
+            {
+                CommonUtility::LogInfo("Forwarding message to: " + message.values[0]);
+                CommonUtility::broadcastEspNowMessage(msg);
+            }
+        }
+        if(message.type == "ChangeName"){
+            message.type = "NameChanged";
+            ws->textAll(MessageParser::build(message));
+            changeSoftAPName(message.values[0]);
+            CommonUtility::LogInfo("📡 AP Started: IP = " + WiFi.softAPIP().toString());
         }
     }
+}
+
+void GPIOManager::handleESPNowMessage(uint8_t *macAddress, String msg)
+{
+    MessageData message = MessageParser::parse(msg);
+    if (message.type == "PinsStatus")
+    {
+        String json = GetPinStateMessage(CommonUtility::loadStringFromFile("/leds.txt"));
+        CommonUtility::broadcastEspNowMessage(json);
+    }
+
+    if (message.type == "TogglePin" && message.values[0] == WiFi.softAPSSID())
+    {
+        TogglePin(message);
+    }
+    if (message.type == "PinsState")
+    {
+        String json = MessageParser::build(message);
+        ws->textAll(json);
+    }
+}
+
+void GPIOManager::changeSoftAPName(String newSSID, String newPassword) {
+  WiFi.softAPdisconnect(true);
+  delay(100);
+
+  if (newPassword.length() >= 8) {
+    WiFi.softAP(newSSID.c_str(), newPassword.c_str());
+  } else {
+    WiFi.softAP(newSSID.c_str());
+  }
+  if (CommonUtility::saveStringToFile("/device.txt", newSSID))
+  {
+        Serial.println("✅ JSON saved to LittleFS");
+  }
+  CommonUtility::LogInfo("Changed SoftAP to: "+ newSSID +" "+ WiFi.softAPIP().toString());
+}
+
+
+void GPIOManager::TogglePin(MessageData message)
+{
+    String deviceName = message.values[0];
+    int index = message.values[1][0] - '0';
+    char state = message.values[2][0];
+
+    String newStates = CommonUtility::loadStringFromFile("/leds.txt");
+    newStates[index] = state;
+    updatePinState(index, state - '0');
+
+    CommonUtility::LogInfo("Updated pin State:" + newStates);
+    if (CommonUtility::saveStringToFile("/leds.txt", newStates))
+    {
+        Serial.println("✅ JSON saved to LittleFS");
+    }
+
+    String json = GetPinStateMessage(newStates);
+    CommonUtility::LogInfo("📣 Notifying all WebSocket clients: " + json);
+    ws->textAll(json);
+    CommonUtility::broadcastEspNowMessage(json);
+}
+
+String GPIOManager::GetPinStateMessage(String pinStates){
+    MessageData response;
+    response.type = "PinsState";
+    response.values.emplace_back(WiFi.softAPSSID());
+    response.values.emplace_back(pinStates);
+
+    return MessageParser::build(response);
 }
 
 bool GPIOManager::mountFileSystem()

@@ -11,4 +11,6 @@ public:
     static bool saveStringToFile(const String &path, const String &content);
     static String loadStringFromFile(const String &path);
     static void LogInfo(const String &info);
+    static bool sendEspNowMessage(const uint8_t* peerMacAddress, const String& message);
+    static bool broadcastEspNowMessage(const String& message);
 };

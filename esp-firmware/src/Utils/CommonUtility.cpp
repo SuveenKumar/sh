@@ -1,5 +1,6 @@
 #include <Utils/Constants.h>
 #include "CommonUtility.h"
+#include <espnow.h>
 
 void CommonUtility::wipeAllMemory()
 {
@@ -68,4 +69,26 @@ String CommonUtility::loadStringFromFile(const String &path)
 void CommonUtility::LogInfo(const String &info)
 {
     Serial.println(String(millis()) + ", Free heap: " + String(ESP.getFreeHeap()) + ": " + info);
+}
+
+bool CommonUtility::sendEspNowMessage(const uint8_t* peerMacAddress, const String& message) {
+  int result = esp_now_send((uint8_t*)peerMacAddress, (uint8_t*)message.c_str(), message.length());
+  if (result == 0) {
+    CommonUtility::LogInfo("✅ ESP-NOW message sent successfully to: " + message);
+    return true;
+  } else {
+    CommonUtility::LogInfo("❌ Failed to send ESP-NOW message.");
+    return false;
+  }
+}
+
+bool CommonUtility::broadcastEspNowMessage(const String& message) {
+  int result = esp_now_send(BROADCAST_MAC_ADDRESS, (uint8_t*)message.c_str(), message.length());
+  if (result == 0) {
+    CommonUtility::LogInfo("✅ ESP-NOW message Broadcasted successfully: "+ message);
+    return true;
+  } else {
+    CommonUtility::LogInfo("❌ Failed to send ESP-NOW message.");
+    return false;
+  }
 }

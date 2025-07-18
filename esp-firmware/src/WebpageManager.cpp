@@ -14,12 +14,8 @@ void WebpageManager::begin(AsyncWebSocket *ws)
         return;
     }
     CommonUtility::LogInfo("✅ index.html found");
-    server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+    server.serveStatic("/", LittleFS, "/").setDefaultFile("leds.html");
     server.begin();
-
-    WiFi.mode(WIFI_AP_STA);
-    delay(100);
-    WiFi.scanNetworks(true);
 
     CommonUtility::LogInfo("🚀 WebpageManager started");
 }
@@ -31,6 +27,10 @@ void WebpageManager::loop()
 
 void WebpageManager::handleWebSocketMessage(AsyncWebSocketClient *client, AwsEventType eventType, String msg)
 {
+}
+
+void WebpageManager::handleESPNowMessage(uint8_t *macAddress, String msg){
+
 }
 
 void WebpageManager::setupCaptivePortalRoutes()
@@ -51,5 +51,5 @@ void WebpageManager::setupCaptivePortalRoutes()
 
 void WebpageManager::serveIndex(AsyncWebServerRequest *request)
 {
-    request->send(LittleFS, "/index.html", "text/html");
+    request->send(LittleFS, "/leds.html", "text/html");
 }
